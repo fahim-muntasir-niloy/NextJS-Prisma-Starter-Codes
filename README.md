@@ -1,34 +1,54 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Setting up a NextJS app with Prisma
 
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+## Basic Setup
+To create a next app, run the command and follow the instructions.
+```sql
+npx create-next-app@latest
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Intgrating `prisma` with the next app.
+```sql
+cd app_directory
+npm i prisma --save-dev
+```
+Connect a Database to prisma, here we will use `sqlite`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```sql
+npx prisma init --datasource-provider sqlite
+```
+- Always hide `.env` file in the gitignore.
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+## Setting Prisma
+Create a model schema
+```sql
+model TODO{
+  id String @id @default(uuid()) // primary key
+  title String
+  complete Boolean
+  created DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+```
+Migrate the model to Database:
+```sql
+npx prisma migrate dev --name init
+```
+This would confirm the migration. Lastly to use the prisma client in the app, create a `db.ts` file in the `src` directory, and import `prisma client`.
 
-## Learn More
+```ts
+import { PrismaClient } from '@prisma/client'
 
-To learn more about Next.js, take a look at the following resources:
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+export const prisma = globalForPrisma.prisma ?? new PrismaClient()
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+```
+*In development, the command next dev clears Node.js cache on run. This in turn initializes a new PrismaClient instance each time due to hot reloading that creates a connection to the database. This can quickly exhaust the database connections as each PrismaClient instance holds its own connection pool. Thats why the following code is used.*
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Now simply start the application by:
+```npm
+npm run dev
+```
